@@ -6,12 +6,12 @@ namespace Authentication
 {
     internal class LoginRequestConsumer : IConsumer<LoginRequest>
     {
-        //private readonly ILogger<LoginRequestConsumer> _logger;
+        private readonly ILogger<LoginRequestConsumer> _logger;
 
-        //public LoginRequestConsumer(ILogger<LoginRequestConsumer> logger)
-        //{
-        //    _logger = logger;
-        //}
+        public LoginRequestConsumer(ILogger<LoginRequestConsumer> logger)
+        {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
 
         public async Task Consume(ConsumeContext<LoginRequest> context)
         {
@@ -27,7 +27,7 @@ namespace Authentication
             }
             catch (Exception ex)
             {
-                //_logger.LogError(ex, "Error processing LoginRequest");
+                _logger.LogError(ex, "Error processing LoginRequest");
                 throw;
             }
         }
