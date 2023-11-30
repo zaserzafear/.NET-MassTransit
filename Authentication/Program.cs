@@ -21,20 +21,9 @@ internal class Program
         {
             builder.AddSerilog();
         });
-        ILogger<Program> logger = loggerFactory.CreateLogger<Program>();
-
-        // Log some messages with different log levels and message templates
-        logger.LogTrace("This is a trace message.");
-        logger.LogDebug("This is a debug message.");
-        logger.LogInformation("Hello {Name}!", "World");
-        logger.LogWarning("This is a warning message.");
-        logger.LogError("This is an error message.");
-        logger.LogCritical("This is a critical message.");
-
 
         try
         {
-
             var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
 
             var jsonFilePath = $"appsettings.{environment}.json";

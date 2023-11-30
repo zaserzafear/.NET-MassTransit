@@ -20,7 +20,7 @@ namespace Authentication
                 var result = new LoginResult
                 {
                     IsSuccess = true,
-                    Token = "asdf",
+                    Token = "Login Token !!!",
                 };
 
                 await context.RespondAsync(result);
