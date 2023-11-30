@@ -8,7 +8,37 @@ using SettingModels;
 
 internal class Program
 {
-    static async Task Main()
+    private static async Task Main()
+    {
+        ConfigureLogging();
+
+        using var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog());
+
+        try
+        {
+            var environment = GetEnvironment();
+
+            var configuration = BuildConfiguration(environment);
+
+            var rabbitMqSetting = configuration.GetSection(nameof(RabbitMqSetting)).Get<RabbitMqSetting>()!;
+
+            var services = BuildServiceCollection(rabbitMqSetting);
+
+            services = await StartMassTransitAsync(services);
+
+            using var serviceProvider = services.BuildServiceProvider();
+
+            Console.WriteLine("MassTransit consumer is running. Press Ctrl+C to exit.");
+
+            await WaitForExitAsync();
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
+    }
+
+    private static void ConfigureLogging()
     {
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
@@ -16,52 +46,46 @@ internal class Program
             .Enrich.FromLogContext()
             .WriteTo.Console()
             .CreateLogger();
+    }
 
-        using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+    private static string GetEnvironment()
+    {
+        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+        var jsonFilePath = $"appsettings.{environment}.json";
+
+        if (!File.Exists(jsonFilePath))
         {
-            builder.AddSerilog();
-        });
-
-        try
-        {
-            var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-
-            var jsonFilePath = $"appsettings.{environment}.json";
-            if (!File.Exists(jsonFilePath))
-            {
-                Console.WriteLine($"Warning: The configuration file '{jsonFilePath}' does not exist.");
-            }
-
-            var configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .AddJsonFile(jsonFilePath, optional: true, reloadOnChange: true)
-                .AddEnvironmentVariables()
-                .Build();
-
-            var rabbitMqSetting = configuration.GetSection(nameof(RabbitMqSetting)).Get<RabbitMqSetting>();
-
-            var services = new ServiceCollection()
-                .AddLogging(builder => builder.AddSerilog())
-                .AddMassTransitExtension(rabbitMqSetting!.Host, rabbitMqSetting.Username, rabbitMqSetting.Password);
-
-            // Start MassTransit asynchronously
-            services = await services.StartMassTransitAsync();
-
-            services.BuildServiceProvider();
-
-            // Run your application logic here
-            Console.WriteLine("MassTransit consumer is running. Press Ctrl+C to exit.");
-
-            // Keep the program alive until terminated
-            var exitEvent = new ManualResetEventSlim();
-            Console.CancelKeyPress += (sender, eventArgs) => exitEvent.Set();
-
-            // Block the main thread to keep the program running
-            exitEvent.Wait();
+            Console.WriteLine($"Warning: The configuration file '{jsonFilePath}' does not exist.");
         }
-        finally
-        {
-            Log.CloseAndFlush();
-        }
+
+        return environment;
+    }
+
+    private static IConfiguration BuildConfiguration(string environment)
+    {
+        return new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true)
+            .AddEnvironmentVariables()
+            .Build();
+    }
+
+    private static IServiceCollection BuildServiceCollection(RabbitMqSetting rabbitMqSetting)
+    {
+        return new ServiceCollection()
+            .AddLogging(builder => builder.AddSerilog())
+            .AddMassTransitExtension(rabbitMqSetting!.Host, rabbitMqSetting.Username, rabbitMqSetting.Password);
+    }
+
+    private static async Task<IServiceCollection> StartMassTransitAsync(IServiceCollection services)
+    {
+        return await services.StartMassTransitAsync();
+    }
+
+    private static async Task WaitForExitAsync()
+    {
+        var exitEvent = new ManualResetEventSlim();
+        Console.CancelKeyPress += (sender, eventArgs) => exitEvent.Set();
+        await Task.Run(() => exitEvent.Wait());
     }
 }
