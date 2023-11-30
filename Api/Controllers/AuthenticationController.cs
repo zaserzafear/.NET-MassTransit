@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Models;
+﻿using AuthenticationModels;
+using MassTransit;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers
 {
@@ -7,10 +8,21 @@ namespace Api.Controllers
     [ApiController]
     public class AuthenticationController : BaseController
     {
-        [HttpPost]
-        public IActionResult Authentication([FromBody] AuthenticationModel model)
+        private readonly IRequestClient<LoginRequest> _requestClient;
+
+        public AuthenticationController(IRequestClient<LoginRequest> requestClient)
         {
-            return Ok(model);
+            _requestClient = requestClient;
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AuthenticationAsync([FromBody] LoginRequest model)
+        {
+            var response = await _requestClient.GetResponse<LoginResult>(model);
+
+            var result = response.Message;
+
+            return Ok(result);
         }
     }
 }

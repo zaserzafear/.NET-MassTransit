@@ -6,3 +6,17 @@ services:
     build:
       context: .
       dockerfile: Api/Dockerfile
+
+  authentication:
+    image: ${DOCKER_REGISTRY-}authentication
+    build:
+      context: .
+      dockerfile: Authentication/Dockerfile
+
+  rabbitmq:
+    container_name: "rabbitmqcontainer"
+    image: rabbitmq:3.12-management
+    hostname: "rabbitmq"
+    ports:
+        - '5672:5672'
+        - '15672:15672'
